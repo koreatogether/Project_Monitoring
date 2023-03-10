@@ -1,0 +1,25 @@
+<mxfile host="65bd71144e">
+    <diagram id="WbM66Wv8N8mft--69yu0" name="페이지-1">
+        <mxGraphModel dx="245" dy="557" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="아두이노 시작" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="60" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="각종 변수들" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="260" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Setup 시작" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="380" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Loop 시작" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="490" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="라이브러리 불러오기" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="160" width="120" height="60" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
