@@ -136,6 +136,11 @@ TMP36
 BME280
 DS18B20
 
+23-03-10 
+
+추가한 코드 내역
+SD 파일 생성 날짜를 DS3231 RTC 로부터 읽어와서 생성하도록 수정
+
 */
 
 // Date and time functions using a DS3231 RTC connected via I2C and Wire lib
@@ -180,12 +185,23 @@ const int sdCardSelect = 4; // SD 카드의 CS 핀을 4번 핀에 연결한다.
 String fileName = "data";
 int fileNumber = 1;
 
+// check make file time
+void dateTime(uint16_t *date, uint16_t *time)
+{
+  DateTime now = rtc.now();
+  *date = FAT_DATE(now.year(), now.month(), now.day());
+  *time = FAT_TIME(now.hour(), now.minute(), now.second());
+}
+
 void setup()
 {
   Serial.begin(9600);
   // u8g font setup
   u8g.setFont(u8g_font_unifont);
   dht.begin();
+
+  // callback function for SD card
+  SdFile::dateTimeCallback(dateTime);
 
   if (!rtc.begin()) // RTC 모듈이 연결되어있는지 확인하는 구간
   {

@@ -1,15 +1,6 @@
 
 # 모니터링 프로젝트 모음소
 
-
-
-
-
-
-
-
-
-
 ## Acknowledgements
 
  - [Awesome Readme Templates](https://awesomeopensource.com/project/elangosundar/awesome-README-templates)
@@ -124,8 +115,6 @@ If you have any feedback, please reach out to us at fake@fake.com
 
 
 ## 🚀 About Me
-I'm a full stack developer...
-
 
 # Hi, I'm Katherine! 👋
 
