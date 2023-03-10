@@ -146,6 +146,9 @@ https://www.makerguides.com/tmp36-arduino-tutorial/
 
 23-02-28 성공은 했으나 온도 정확성이 있어서 이상하다.
 
+23-03-10 
+추가한 코드 내역
+SD 파일 생성 날짜를 DS3231 RTC 로부터 읽어와서 생성하도록 수정
 */
 
 // Date and time functions using a DS3231 RTC connected via I2C and Wire lib
@@ -191,10 +194,22 @@ const int sdCardSelect = 4; // SD 카드의 CS 핀을 4번 핀에 연결한다.
 String fileName = "data";
 int fileNumber = 1;
 
+// check make file time
+void dateTime(uint16_t *date, uint16_t *time)
+{
+  DateTime now = rtc.now();
+  *date = FAT_DATE(now.year(), now.month(), now.day());
+  *time = FAT_TIME(now.hour(), now.minute(), now.second());
+}
+
 void setup()
 {
   Serial.begin(9600);
   // u8g font setup
+
+  // callback function for SD card
+  SdFile::dateTimeCallback(dateTime);
+  
   u8g.setFont(u8g_font_unifont);
   //dht.begin();
 
