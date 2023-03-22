@@ -183,15 +183,12 @@ Hardware  ||  external Vin   ||  RotaryEncorder ( 5V , 3.3V 모두 가능)
 코드 맨 아래 쓰인 라이브러리 링크 및 라이센스 정보를 확인하면 됩니다.
 */
 
-// #include <RTClib.h>  // 도저히 동작 먹통되는 것에 대한 해결방법을 못 찾아 우선 제외  , 뭘 써야 하나 ?
-
 #include "Arduino.h"
 #include <SPI.h> // SD카드 사용을 위한 SPI 라이브러리
 #include <Wire.h>
 #include <DHT22.h>
 #include "uRTCLib.h" // PICO 보드 이상없음 
 #include <RP2040_SD.h>
-
 #include <Adafruit_SSD1306.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 
