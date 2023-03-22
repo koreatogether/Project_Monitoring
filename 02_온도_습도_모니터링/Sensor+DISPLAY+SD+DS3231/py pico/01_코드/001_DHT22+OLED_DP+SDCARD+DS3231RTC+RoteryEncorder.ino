@@ -1,5 +1,5 @@
 /*
-^@배선도
+^@배선도  // ! 수정 필요
 Hardware  ||  pico   ||  DHT22( 5V , 3.3V 모두 가능)
               3.3V   ||   VCC
               GND    ||   GND
@@ -52,10 +52,33 @@ Hardware  ||  pico   ||  RotaryEncorder ( 5V , 3.3V 모두 가능)
 
 ^@피코보드 업로드 방법
   https://blog.naver.com/PostView.naver?blogId=jcosmoss&logNo=222457510932&categoryNo=0&parentCategoryNo=56&currentPage=1
-  ^ 최초에만 부트버튼 누르면 되고 다음 부터는 안 눌러도 된다.
+  https://cafe.naver.com/dgarduino/14716
+
+  ^ 최초 업로드 하는 동안만 계속 부트버튼 누르면 되고 wrote ~ 라는 빨강색 메세지가 뜨면 부트버튼 떼도 된다.
+    아두이노 연결 usb를 뺐다 다시 끼고 포트선택란에 보면 파이피코 com 번호가 보일 것이다 .선택 
+    이젠 부트 버튼 안 눌러도 업로드가 가능해진다.
 
 ^@진행 사항(글이 길어질경우 맨 아래로 이동)
   - 2023.03.11 : 001 버전 시작  
+  - 2023.03.12 : 로터리 엔코더 기초 코드 공부 
+  - 2023.03.12 #2 : 파이피코 전원 공급 방법 공부 ( 왠만하면  40핀에 연결하지 말것 )
+                    VSYS(39번핀) 에 다이오드로 연결해서 외부전원공급할것 최소 2볼트 필요
+                    이렇게하면 코딩도 가능하고 업로드도 가능하다. - 이건 유튜브 내용잘살펴볼것 
+                    36번핀  3.3V OUTPUT MAX 300mA 출력이 가능하다(공식문서 참고)
+
+^@참고 사이트
+- 파이피코 변형보드 만드신분  : https://sira-engineer.tistory.com/6?category=966430
+- 파이피코 핀맵 깔끔한 거 : https://blog.naver.com/yunc26/222590881823
+- 로터리엔코더 사용법 안내 및코드 : https://cafe.naver.com/dgarduino/9173
+- 파이피코 전원 공급에 대한 안내 : https://remnant24c.tistory.com/268
+- 파이피코 전원 공급 안내 유튜브 (해외 ) : https://youtu.be/3PH9jzRsb5E
+- 파이피코 상제 내역 블로그 ( 한글 ) : https://fishpoint.tistory.com/7369
+- 파이피코 제원 상세 : https://www.etechnophiles.com/raspberry-pi-pico-pinout-specifications-datasheet-in-detail/
+
+- 파이피코 + 로터리엔더코 기초코드 : https://cafe.naver.com/dgarduino/9173
+
+^@ 중요변경 사항
+- U8glib -> U8g2 로 변경 ( 002 버전 code부터 적용 )
 */
 
 #include "RTClib.h"
@@ -76,8 +99,8 @@ State state = INTIALIZE;
 
 RTC_DS3231 rtc;
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_DEV_0 | U8G_I2C_OPT_NO_ACK | U8G_I2C_OPT_FAST);
-File myFile;
 
+File myFile;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 unsigned long previousMillis_OLED = 0;
