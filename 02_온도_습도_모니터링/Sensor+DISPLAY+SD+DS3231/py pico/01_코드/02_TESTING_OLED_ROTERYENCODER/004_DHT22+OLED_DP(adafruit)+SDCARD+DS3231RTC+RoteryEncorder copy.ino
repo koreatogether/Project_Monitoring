@@ -134,6 +134,20 @@ Hardware  ||  external Vin   ||  RotaryEncorder ( 5V , 3.3V 모두 가능)
   - 2023.03.22 #1 : RTClib.h  => 대체 1 라이브러리 "uRTCLib.h" 를 테스트중  => 작동 이상없이됨 , 다만 SD 카드에 날짜 넘기는 부분???
   - 2023.03.22 #2 : 현재 ROTERY , OLED , DHT22 , RTC , SD ( 파일 날짜 기입빼곤 )까지 동작 확인함
   - 2023.03.22 #3 : 003 -> 004 버전을 바꾸면서  SD 카드 파일 생성시 현재 날짜가 들어가게 해주는 부분 + 코드 정리 까지 예정 
+  - 2023.03.23 #1 : 마지막에서 rtc.minute()에 영향을 끼치는 라이브러리가존재 하기에 방법 찾는중 
+                    if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+                        {
+                          Serial.println(F("SSD1306 allocation failed"));
+                          for (;;)
+                            ; // Don't proceed, loop forever
+                        }
+                      위 부분의 전압변하는 과정에서 에
+ - 2023.03.24 #1 : adafruit를 유지할지 , crystal lcd로 가야 할지 고민 중 ....
+ - 2023.03.24 #2 : crystal lcd로 가기로 결정함 , 16x2 i2c lcd 모듈을 사용할 예정 , oled, and rotery encoder는 제외함 
+
+^@ 추후 살펴봐야 할것들 
+1. u8g2 + 인터럽트 충돌 
+2. adafruit ssd1306  와 uRTCLib 충돌
 
 ^@참고 사이트
 - 파이피코 변형보드 만드신분  : https://sira-engineer.tistory.com/6?category=966430
@@ -150,6 +164,8 @@ Hardware  ||  external Vin   ||  RotaryEncorder ( 5V , 3.3V 모두 가능)
                                           (인터럽트 )  https://m.blog.naver.com/i2asys/220864716104
 - 엔코더 분석 : https://m.blog.naver.com/kimchulki1/220011691097
 - 타이머 / 카운터 에 대한 심층 : https://recall.tistory.com/30
+- crystal lcd 설명 1 : https://blog.naver.com/yunc26/222622178769
+
 
 - pico i2c 핀번호 변경하는 방법
   pico 보드에 보면 i2c0 핀들이 있습니다. 그럼 setup() {  } 안에 아래처럼 하면됩니다.
@@ -183,14 +199,15 @@ Hardware  ||  external Vin   ||  RotaryEncorder ( 5V , 3.3V 모두 가능)
 코드 맨 아래 쓰인 라이브러리 링크 및 라이센스 정보를 확인하면 됩니다.
 */
 
-#include "Arduino.h"
+#include <Arduino.h>
 #include <SPI.h> // SD카드 사용을 위한 SPI 라이브러리
 #include <Wire.h>
 #include <DHT22.h>
-#include "uRTCLib.h" // PICO 보드 이상없음 
+#include <uRTCLib.h> // PICO 보드 이상없음 
 #include <RP2040_SD.h>
-#include <Adafruit_SSD1306.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
+//#include <Adafruit_SSD1306.h>
+//#include <Fonts/FreeMonoBold9pt7b.h>
+#include <liquidcrystal_I2C.h>  // 보드 자체는호환 되지 않지만 단독은 실행됨
 
 enum State
 {
@@ -207,18 +224,27 @@ State state = INTIALIZE;
 
 // 변수등 선언 순서는  DS3231 RTC, OLED , SD카드 , DHT22 , RotaryEncorder , millis() 순서로 한다.
 
-uRTCLib rtc(0x68); // DS3231 RTC 모듈을 사용하기 위한 객체 생성 , 0x68 은 DS3231 RTC 모듈의 I2C 주소
+uRTCLib rtc; // DS3231 RTC 모듈을 사용하기 위한 객체 생성 , 0x68 은 DS3231 RTC 모듈의 I2C 주소
 
-#define SCREEN_WIDTH 128    // OLED display width, in pixels
-#define SCREEN_HEIGHT 64    // OLED display height, in pixels
-#define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-#define NUMFLAKES 10 // Number of snowflakes in the animation example
-#define LOGO_HEIGHT 16
-#define LOGO_WIDTH 16
+LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C LCD 모듈을 사용하기 위한 객체 생성 , 0x27 은 I2C LCD 모듈의 I2C 주소
+
+
+/* 충도롤 인하여 우선 잠시 보류 함 */
+// #define SCREEN_WIDTH 128    // OLED display width, in pixels
+// #define SCREEN_HEIGHT 64    // OLED display height, in pixels
+// #define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
+// #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+// Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+// #define NUMFLAKES 10 // Number of snowflakes in the animation example
+// #define LOGO_HEIGHT 16
+// #define LOGO_WIDTH 16
+
+
+
+
 
 // miso = 16 , mosi = 19 , sck = 18 , cs = 17  => pico보드의 SPI(0) 기본 핀
+
 File myFile;
 const int chipSelect = 17; // SD카드 CS 핀을 Pico GPIO17에 연결
 String fileName = "tata";  // 파일명
@@ -227,23 +253,25 @@ int fileNumber = 0;        // 파일번호
 const int dht22_dataPin = 2; // DHT22 data pin to Pico GPIO2
 DHT22 dht22(dht22_dataPin);
 
-const int encoder0PinA = 15; // setup() 안의 인터럽트 구문에 들어가는 핀이 clk이다.
-const int encoder0PinB = 14; // setup() 안의 인터럽트 구문에 들어가는 핀이 clk이다.
-const int encoder0PinBtn = 13;
-volatile long encoder0Pos = 0;
-int newEncoder0Pos = 0;
-volatile int8_t encoder0PinALast;
-int encoder0BtnPinState;
+// const int encoder0PinA = 15; // setup() 안의 인터럽트 구문에 들어가는 핀이 clk이다.
+// const int encoder0PinB = 14; // setup() 안의 인터럽트 구문에 들어가는 핀이 clk이다.
+// const int encoder0PinBtn = 13;
+// volatile long encoder0Pos = 0;
+// int newEncoder0Pos = 0;
+// volatile int8_t encoder0PinALast;
+// int encoder0BtnPinState;
 
 unsigned long previousMillis = 0; // millis()를 위한 변수
 const int interval = 2000;        // 2초마다 실행
 
-// void dateTime(uint16_t *date, uint16_t *time) // setup () dateTime 이라는 함수가 쓰일 예정이므로 일찍??? 선언 하는건가?
-// {
-//   DateTime now = rtc.now();
-//   *date = FAT_DATE(now.year(), now.month(), now.day());
-//   *time = FAT_TIME(now.hour(), now.minute(), now.second());
-// }
+void dateTime(uint16_t *date, uint16_t *time) // setup () dateTime 이라는 함수가 쓰일 예정이므로 일찍??? 선언 하는건가?
+{
+  
+  rtc.refresh();
+  int years_4 = rtc.year() + 2000;    // rtc.year() 의 값이 2자리 정수라서 , FAT_DTAE 의 Y 인수에서 요구하는 4자리 정수가 아니라 2000을 더했습니다.
+  *date = FAT_DATE(years_4, rtc.month(), rtc.day());
+  *time = FAT_TIME(rtc.hour(), rtc.minute(), rtc.second());
+}
 
 void setup_SDcard() // ########
 {
@@ -262,29 +290,34 @@ void setup_SDcard() // ########
   }
 }
 
-void write_SDcard(/*DateTime now*/) // ########
+void write_SDcard( ) // ########
 {
   // 파일 생성 및 열기
   myFile = SD.open(fileName + String(fileNumber) + ".txt", FILE_WRITE);
-
-  // 파일 열기에 성공했다면 데이터 쓰기
+  
+  // 파일 열기에 성공했다면 데이터 쓰기 , 추후 타임 스탬프 찍어보는 코드를 추가 해볼것 
   if (myFile)
   {
+    //stamp.timestamp(T_CREATE,2022,12,1,10,30,0)        ;
+    //stamp.timestamp(T_WRITE,2022,12,1,10,30,0)        ;
+
+    // 위 2 코드가 파일 메타데이타에 쓰기를 못하고 있다. 
+    // 콜뱃 함수를 어떻게 활용하는지 ? 
     Serial.print(F("Writing to tadaX.txt..."));
-    // myFile.print(now.year());
-    // myFile.print('/');
-    // myFile.print(now.month());
-    // myFile.print('/');
-    // myFile.print(now.day());
-    // myFile.print(" (");
-    // myFile.print(daysOfTheWeek[now.dayOfTheWeek()]);
-    // myFile.print(") ");
-    // myFile.print(now.hour());
-    // myFile.print(':');
-    // myFile.print(now.minute());
-    // myFile.print(':');
-    // myFile.print(now.second());
-    // myFile.print(" , ");
+    myFile.print(rtc.year());
+    myFile.print('/');
+    myFile.print(rtc.month());
+    myFile.print('/');
+    myFile.print(rtc.day());
+    myFile.print(" (");
+    myFile.print(rtc.dayOfWeek());
+    myFile.print(") ");
+    myFile.print(rtc.hour());
+    myFile.print(':');
+    myFile.print(rtc.minute());
+    myFile.print(':');
+    myFile.print(rtc.second());
+    myFile.print(" , ");
     myFile.print(dht22.getTemperature());
     myFile.print(" , ");
     myFile.println(dht22.getHumidity());
@@ -329,88 +362,88 @@ void rtc_ds3231()
   Serial.println();
 }
 
-void doEncoderA()
-{
-  int8_t encoder0PinAValue = digitalRead(encoder0PinA);
-  if ((encoder0PinALast == LOW) && (encoder0PinAValue == HIGH))
-  {
-    if (digitalRead(encoder0PinB) == LOW)
-    {
+// void doEncoderA()
+// {
+//   int8_t encoder0PinAValue = digitalRead(encoder0PinA);
+//   if ((encoder0PinALast == LOW) && (encoder0PinAValue == HIGH))
+//   {
+//     if (digitalRead(encoder0PinB) == LOW)
+//     {
 
-      encoder0Pos++;
-    }
-    else
-    {
-      encoder0Pos--;
-    }
-  }
-  encoder0PinALast = encoder0PinAValue;
-}
+//       encoder0Pos++;
+//     }
+//     else
+//     {
+//       encoder0Pos--;
+//     }
+//   }
+//   encoder0PinALast = encoder0PinAValue;
+// }
 
-void menu_selectNumber()
-{
-  newEncoder0Pos = encoder0Pos;
-  if (newEncoder0Pos <= 0)
-  {
-    newEncoder0Pos = 0;
-    encoder0Pos = newEncoder0Pos;
-  }
-  if (newEncoder0Pos >= 2)
-  {
-    newEncoder0Pos = 2;
-    encoder0Pos = newEncoder0Pos;
-  }
-}
+// void menu_selectNumber()
+// {
+//   newEncoder0Pos = encoder0Pos;
+//   if (newEncoder0Pos <= 0)
+//   {
+//     newEncoder0Pos = 0;
+//     encoder0Pos = newEncoder0Pos;
+//   }
+//   if (newEncoder0Pos >= 2)
+//   {
+//     newEncoder0Pos = 2;
+//     encoder0Pos = newEncoder0Pos;
+//   }
+// }
 
-void firstPage_LOOP(void)
-{
-  display.clearDisplay(); // clear to buffer
-  display.setTextColor(SSD1306_WHITE);
-  display.setFont(&FreeMonoBold9pt7b);
-  display.setCursor(0, 12);
-  display.println(F("23/03/03"));
-  display.setCursor(0, 24);
-  display.println(F("14 : 17"));
+// void firstPage_LOOP(void)
+// {
+//   display.clearDisplay(); // clear to buffer
+//   display.setTextColor(SSD1306_WHITE);
+//   display.setFont(&FreeMonoBold9pt7b);
+//   display.setCursor(0, 12);
+//   display.println(F("23/03/03"));
+//   display.setCursor(0, 24);
+//   display.println(F("14 : 17"));
 
-  firstPage_menuName();
-  firstPage_cursor();
-  display.display(); // Show initial Wtext
-}
+//   firstPage_menuName();
+//   firstPage_cursor();
+//   display.display(); // Show initial Wtext
+// }
 
-void firstPage_menuName(void)
-{
-  display.setCursor(36, 40);
-  display.println(F("DHT22")); // F 메크로 를 사용하는걸 잊지 말것
-  display.setCursor(36, 52);
-  display.println(F("PICO")); // F 메크로 를 사용하는걸 잊지 말것
-  display.setCursor(36, 64);
-  display.println(F("ETC ..")); // F 메크로 를 사용하는걸 잊지 말것
-  //  이 함수처럼    다른 페이지에 클리어디스플레이 와 디스플레이 함수 구간안에 넣으면 작동한다.
-  //  즉 여러개의  클리어디스플레이 와 디스플레이 함수를 쓸 필요가 없다.
-}
+// void firstPage_menuName(void)
+// {
+//   display.setCursor(36, 40);
+//   display.println(F("DHT22")); // F 메크로 를 사용하는걸 잊지 말것
+//   display.setCursor(36, 52);
+//   display.println(F("PICO")); // F 메크로 를 사용하는걸 잊지 말것
+//   display.setCursor(36, 64);
+//   display.println(F("ETC ..")); // F 메크로 를 사용하는걸 잊지 말것
+//   //  이 함수처럼    다른 페이지에 클리어디스플레이 와 디스플레이 함수 구간안에 넣으면 작동한다.
+//   //  즉 여러개의  클리어디스플레이 와 디스플레이 함수를 쓸 필요가 없다.
+// }
 
-void firstPage_cursor() // play in loop
-{
-  if (newEncoder0Pos == 0)
-    display.setCursor(12, 38);
+// void firstPage_cursor() // play in loop
+// {
+//   // if (newEncoder0Pos == 0)
+//   //   display.setCursor(12, 38);
 
-  else if (newEncoder0Pos == 1)
-    display.setCursor(12, 50);
+//   // else if (newEncoder0Pos == 1)
+//   //   display.setCursor(12, 50);
 
-  else if (newEncoder0Pos == 2)
-    display.setCursor(12, 62);
+//   // else if (newEncoder0Pos == 2)
+//   //   display.setCursor(12, 62);
 
-  display.print(F(">>"));
-}
+//   display.print(F(">>"));
+// }
 
 void serialMonitor()
 {
-  Serial.print("encoder0Pos = ");
-  Serial.print(encoder0Pos);
-  Serial.print("  newEncoder0Pos = ");
-  Serial.print(newEncoder0Pos);
-  Serial.print(" , encoder0BtnPinState = ");
-  Serial.print(encoder0BtnPinState);
+  // Serial.print("encoder0Pos = ");
+  // Serial.print(encoder0Pos);
+  // Serial.print("  newEncoder0Pos = ");
+  // Serial.print(newEncoder0Pos);
+  // Serial.print(" , encoder0BtnPinState = ");
+  // Serial.print(encoder0BtnPinState);
 
   Serial.print("  Temperature: ");
   Serial.print(dht22.getTemperature());
@@ -420,64 +453,73 @@ void serialMonitor()
 }
 
 void setup() // ########
-{
-  delay(1000);
+{  
   Serial.begin(9600);
 
-#ifdef ARDUINO_ARCH_ESP8266
-  URTCLIB_WIRE.begin(4, 5); // D3 and D4 on ESP8266
-#else
-  URTCLIB_WIRE.begin();
-#endif
+  // Crystal lcd
+  lcd.init();
+  lcd.backlight();
+  // print a message to the LCD.
+  lcd.setCursor(0, 0);
+  lcd.print("Hello, world!");
+  lcd.setCursor(0, 1);
+  lcd.print("I'm a LCD");
 
-  if (rtc.enableBattery())
-  {
-    Serial.println("Battery activated correctly.");
-  }
-  else
-  {
-    Serial.println("ERROR activating battery.");
-  }
 
-  Serial.print("Lost power status: ");
-  if (rtc.lostPower())
-  {
-    Serial.print("POWER FAILED. Clearing flag...");
-    rtc.lostPowerClear();
-    Serial.println(" done.");
-  }
-  else
-  {
-    Serial.println("POWER OK");
-  }
+	#ifdef ARDUINO_ARCH_ESP8266
+		URTCLIB_WIRE.begin(0, 2); // D3 and D4 on ESP8266
+	#else
+		URTCLIB_WIRE.begin();
+	#endif
+	rtc.set_rtc_address(0x68);
+	rtc.set_model(URTCLIB_MODEL_DS3232);
 
-  // rtc.set( 0 , 16 , 15 , 3, 22, 3 , 23);  //  기본 예제로 미리 입력 해놓아서 주석처리함 , 안하면 같은 세팅반복됨
+	// Only used once, then disabled
+	rtc.set(0, 10, 16, 6, 2, 5, 15);
+	//  RTCLib::set(byte second, byte minute, byte hour, byte dayOfWeek, byte dayOfMonth, byte month, byte year)
+	if (rtc.enableBattery()) {
+		Serial.println("Battery activated correctly.");
+	} else {
+		Serial.println("ERROR activating battery.");
+	}
+
+	Serial.print("Lost power status: ");
+	if (rtc.lostPower()) {
+		Serial.print("POWER FAILED. Clearing flag...");
+		rtc.lostPowerClear();
+		Serial.println(" done.");
+	} else {
+		Serial.println("POWER OK");
+	}  
+  // rtc 기초 시간은 uRTCLib 의 예제로 RTC 시간을 설정하고 본 코드를 실행할것   
 
   pinMode(dht22_dataPin, INPUT); // DHT22 data pin to Pico GPIO 2
-  pinMode(encoder0PinA, INPUT);
-  pinMode(encoder0PinB, INPUT);
-  pinMode(encoder0PinBtn, INPUT);
-  attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoderA, CHANGE);
-  // attachInterrupt(digitalPinToInterrupt(encoder0PinB), doEncoderB, CHANGE);  // 다른 엔코더 사용하면 필요해질지 몰라 남김 .
-  encoder0PinALast = digitalRead(encoder0PinA);
+  // pinMode(encoder0PinA, INPUT);
+  // pinMode(encoder0PinB, INPUT);
+  // pinMode(encoder0PinBtn, INPUT);
+  // attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoderA, CHANGE);
+  // // attachInterrupt(digitalPinToInterrupt(encoder0PinB), doEncoderB, CHANGE);  // 다른 엔코더 사용하면 필요해질지 몰라 남김 .
+  // encoder0PinALast = digitalRead(encoder0PinA);
 
-   //RP2040_SdFile::dateTimeCallback(dateTime);
+  RP2040_SdFile::dateTimeCallback(dateTime);
+
   // 기존 SdFile:: ~ 에서 앞에 RP2040_SdFile로 바뀜 나머진 안 바뀜
   // callback funtion for SD card  , 생성파일에 현재 시간을 넣기 위한 함수
+
   setup_SDcard(); // SD카드 초기화 , 상태 체크 함수  
 
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
-  {
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ; // Don't proceed, loop forever
-  }
+  //SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  // if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+  // {
+  //   Serial.println(F("SSD1306 allocation failed"));
+  //   for (;;)
+  //     ; // Don't proceed, loop forever
+  // }
 }
 
 void loop() // ########
 {
-  encoder0BtnPinState = digitalRead(encoder0PinBtn);
+ //encoder0BtnPinState = digitalRead(encoder0PinBtn);
 
   //2초마다 한번씩 동작하는 함수들
    if (millis() - previousMillis > interval)
@@ -485,14 +527,14 @@ void loop() // ########
     previousMillis = millis();
     Serial.println("2초마다 한번씩 동작하는 함수모음 시작~");
 
-    rtc_ds3231(); // RTC 시간 읽어오는 함수
+    
     write_SDcard(/*now*/); // SD카드 파일 생성 및 열기 , 데이터 쓰기 함수 , 나중에 DHT22 와 같이 동작할것
 
     Serial.println("2초마다 한번씩 동작하는 함수모음 동작 끝~");
     Serial.println();
   }
-
-  menu_selectNumber();
-  firstPage_LOOP();  
+  rtc_ds3231(); // RTC 시간 읽어오는 함수
+  //menu_selectNumber();
+  //firstPage_LOOP();  
   serialMonitor(); // 디버깅용 시리얼 출력 함수
 }
